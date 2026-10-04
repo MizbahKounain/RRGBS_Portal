@@ -171,6 +171,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category);
 CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location);
 CREATE INDEX IF NOT EXISTS idx_applications_job_id ON applications(job_id);
 CREATE INDEX IF NOT EXISTS idx_applications_email ON applications(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_job_email_unique
+ON applications (job_id, LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_resumes_email ON resumes(email);
 CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
 `;

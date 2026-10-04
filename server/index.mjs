@@ -450,7 +450,21 @@ app.post('/api/applications', async (req, res) => {
     const application = { id:idempotentId('app'), jobId:body.jobId, jobTitle:String(body.jobTitle), company:String(body.company || job.rows[0].company), applicantName:String(body.applicantName).trim(), email:cleanEmail(body.email), phone:String(body.phone).trim(), experience:String(body.experience||''), currentLocation:String(body.currentLocation||''), resumeFileName:String(body.resumeFileName||storage?.originalName||''), notes:String(body.notes||''), resumeStorage:storage };
     await query(`INSERT INTO applications (id,job_id,job_title,company,applicant_name,email,phone,experience,current_location,resume_file_name,resume_storage,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`, [application.id,application.jobId,application.jobTitle,application.company,application.applicantName,application.email,application.phone,application.experience,application.currentLocation,application.resumeFileName,storage ? JSON.stringify(storage) : null,application.notes]);
     res.status(201).json({ application: { ...application, resumeStorage: undefined } });
-  } catch (error) { console.error(error); res.status(400).json({ message: error.message || 'Could not save application.' }); }
+  } catch (error) {
+    console.error(error);
+
+    // PostgreSQL unique-constraint violation:
+    // same candidate email cannot apply to the same job twice.
+    if (error?.code === '23505' && error?.constraint === 'idx_applications_job_email_unique') {
+      return res.status(409).json({
+        message: 'You have already applied for this job.'
+      });
+    }
+
+    res.status(400).json({
+      message: error.message || 'Could not save application.'
+    });
+  }
 });
 
 app.post('/api/resumes', async (req, res) => {

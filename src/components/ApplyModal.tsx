@@ -82,9 +82,14 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
       await api.application({ ...submission, resumeData });
       onSubmitApplication(submission);
       setIsSubmitted(true);
-    } catch (error) {
-      setErrorMsg(error instanceof Error ? error.message : 'Could not submit application.');
-    } finally {
+    }catch (error) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : 'Could not submit application.';
+
+  setErrorMsg(message);
+} finally {
       setIsSubmitting(false);
     }
   };
