@@ -117,7 +117,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialMode, onClo
               </div>
               {errorMsg && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">{errorMsg}</div>}
               <form onSubmit={handleAuthSubmit} className="space-y-3.5">
-                {mode === 'register' && <>{role === 'employer' ? <div><label className="block text-xs font-bold text-gray-700 mb-1">Organization / Company Name</label><input type="text" required placeholder="e.g. Infotech Solutions Pvt Ltd" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div> : <div><label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label><input type="text" required placeholder="e.g. Rahul Sharma" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div>}<div><label className="block text-xs font-bold text-gray-700 mb-1">Mobile Number</label><input type="tel" required placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div></>}
+              <div>
+  <label className="block text-xs font-bold text-gray-700 mb-1">
+    Mobile Number
+  </label>
+
+  <input
+    type="tel"
+    required
+    inputMode="numeric"
+    autoComplete="tel"
+    placeholder="+91 98765 43210"
+    value={phone}
+    onChange={(e) => {
+      const value = e.target.value.replace(/[^\d+]/g, '');
+      setPhone(value);
+    }}
+    pattern="^(?:\+91|91)?[6-9]\d{9}$"
+    title="Enter a valid 10-digit Indian mobile number"
+    maxLength={13}
+    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
+  />
+
+  <p className="mt-1 text-[11px] text-gray-500">
+    Enter a valid 10-digit Indian mobile number.
+  </p>
+</div>
                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label><input type="email" required placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 mb-1">Password</label><input type="password" minLength={8} required placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div>
                 {mode === 'login' && <div className="text-right"><button type="button" onClick={() => { setForgotOpen(true); setErrorMsg(''); setResetMessage(''); }} className="text-xs font-bold text-[#d71920] hover:underline cursor-pointer">Forgot password?</button></div>}

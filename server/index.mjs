@@ -211,8 +211,25 @@ app.get('/api/health', async (_req, res) => {
 
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { name, email, phone, password, role = 'candidate', companyName = '' } = req.body || {};
-  if (validateRequired(req.body, ['email', 'password'])) return res.status(400).json({ message: 'Email and password are required.' });
-  if (String(password).length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters.' });
+  if (validateRequired(req.body, ['email', 'password', 'phone'])) {
+  return res.status(400).json({
+    message: 'Email, password and mobile number are required.'
+  });
+}
+
+if (String(password).length < 8) {
+  return res.status(400).json({
+    message: 'Password must be at least 8 characters.'
+  });
+}
+
+const normalizedPhone = String(phone || '').replace(/\D/g, '');
+
+if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
+  return res.status(400).json({
+    message: 'Please enter a valid 10-digit Indian mobile number.'
+  });
+}
   if (!['candidate', 'employer'].includes(role)) return res.status(400).json({ message: 'Invalid account role.' });
   if (role === 'candidate' && !String(name || '').trim()) return res.status(400).json({ message: 'Full name is required.' });
   if (role === 'employer' && !String(companyName || name || '').trim()) return res.status(400).json({ message: 'Company name is required.' });
@@ -223,7 +240,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     if (existing.rowCount) return res.status(409).json({ message: 'An account with this email already exists.' });
     const user = {
       id: idempotentId('usr'), name: String(role === 'employer' ? (companyName || name) : name).trim(), email: normalized,
-      phone: String(phone || '').trim(), role, companyName: String(companyName || '').trim(), passwordHash: hashPassword(password),
+      phone: normalizedPhone, role, companyName: String(companyName || '').trim(), passwordHash: hashPassword(password),
     };
     await query(`INSERT INTO users (id,name,email,phone,role,company_name,password_hash) VALUES ($1,$2,$3,$4,$5,$6,$7)`, [user.id,user.name,user.email,user.phone,user.role,user.companyName,user.passwordHash]);
     const token = signToken({ sub: user.id, role: user.role, exp: Date.now() + 1000 * 60 * 60 * 24 * 7 });
