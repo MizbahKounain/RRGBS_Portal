@@ -50,8 +50,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialMode, onClo
     e.preventDefault(); setErrorMsg(''); setIsSubmitting(true);
     try {
       const result = mode === 'register'
-        ? await api.register({ name, email, phone, password, role, companyName })
-        : await api.login({ email, password, role });
+  ? await api.register({
+      name,
+      email,
+      phone,
+      password,
+      role,
+      companyName
+    })
+  : await api.login({
+      phone,
+      password,
+      role
+    });
       setToken(result.token); setPassword(''); onClose(); onSuccess(result.user);
     } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Authentication failed.'); }
     finally { setIsSubmitting(false); }
@@ -117,37 +128,140 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialMode, onClo
               </div>
               {errorMsg && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">{errorMsg}</div>}
               <form onSubmit={handleAuthSubmit} className="space-y-3.5">
-              <div>
-  <label className="block text-xs font-bold text-gray-700 mb-1">
-    Mobile Number
-  </label>
 
-  <input
-    type="tel"
-    required
-    inputMode="numeric"
-    autoComplete="tel"
-    placeholder="+91 98765 43210"
-    value={phone}
-    onChange={(e) => {
-      const value = e.target.value.replace(/[^\d+]/g, '');
-      setPhone(value);
-    }}
-    pattern="^(?:\+91|91)?[6-9]\d{9}$"
-    title="Enter a valid 10-digit Indian mobile number"
-    maxLength={13}
-    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
-  />
+  {/* REGISTER ONLY — NAME */}
+  {mode === 'register' && (
+    <div>
+      <label className="block text-xs font-bold text-gray-700 mb-1">
+        {role === 'employer' ? 'Contact / Owner Name' : 'Full Name'}
+      </label>
 
-  <p className="mt-1 text-[11px] text-gray-500">
-    Enter a valid 10-digit Indian mobile number.
-  </p>
-</div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label><input type="email" required placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 mb-1">Password</label><input type="password" minLength={8} required placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all" /></div>
-                {mode === 'login' && <div className="text-right"><button type="button" onClick={() => { setForgotOpen(true); setErrorMsg(''); setResetMessage(''); }} className="text-xs font-bold text-[#d71920] hover:underline cursor-pointer">Forgot password?</button></div>}
-                <button type="submit" disabled={isSubmitting} className="w-full bg-[#d71920] hover:bg-[#b8141a] disabled:opacity-60 text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer">{isSubmitting ? 'Please wait…' : mode === 'login' ? `Sign In as ${role === 'employer' ? 'Employer' : 'Candidate'}` : 'Create Account'}</button>
-              </form>
+      <input
+        type="text"
+        required
+        autoComplete="name"
+        placeholder={role === 'employer' ? 'Enter contact person name' : 'Enter your full name'}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
+      />
+    </div>
+  )}
+
+  {/* REGISTER ONLY — COMPANY */}
+  {mode === 'register' && role === 'employer' && (
+    <div>
+      <label className="block text-xs font-bold text-gray-700 mb-1">
+        Company Name
+      </label>
+
+      <input
+        type="text"
+        required
+        autoComplete="organization"
+        placeholder="Enter company name"
+        value={companyName}
+        onChange={(e) => setCompanyName(e.target.value)}
+        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
+      />
+    </div>
+  )}
+
+  {/* LOGIN + REGISTER — MOBILE */}
+  <div>
+    <label className="block text-xs font-bold text-gray-700 mb-1">
+      Mobile Number
+    </label>
+
+    <input
+      type="tel"
+      required
+      inputMode="numeric"
+      autoComplete="tel"
+      placeholder="+91 98765 43210"
+      value={phone}
+      onChange={(e) => {
+        const value = e.target.value.replace(/[^\d+]/g, '');
+        setPhone(value);
+      }}
+      pattern="^(?:\+91|91)?[6-9]\d{9}$"
+      title="Enter a valid 10-digit Indian mobile number"
+      maxLength={13}
+      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
+    />
+
+    <p className="mt-1 text-[11px] text-gray-500">
+      Enter a valid 10-digit Indian mobile number.
+    </p>
+  </div>
+
+  {/* REGISTER ONLY — EMAIL */}
+  {mode === 'register' && (
+    <div>
+      <label className="block text-xs font-bold text-gray-700 mb-1">
+        Email Address
+      </label>
+
+      <input
+        type="email"
+        required
+        autoComplete="email"
+        placeholder="name@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
+      />
+    </div>
+  )}
+
+  {/* LOGIN + REGISTER — PASSWORD */}
+  <div>
+    <label className="block text-xs font-bold text-gray-700 mb-1">
+      Password
+    </label>
+
+    <input
+      type="password"
+      minLength={8}
+      required
+      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+      placeholder="At least 8 characters"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-[#d71920] focus:bg-white transition-all"
+    />
+  </div>
+
+  {/* LOGIN ONLY — FORGOT PASSWORD */}
+  {mode === 'login' && (
+    <div className="text-right">
+      <button
+        type="button"
+        onClick={() => {
+          setForgotOpen(true);
+          setErrorMsg('');
+          setResetMessage('');
+        }}
+        className="text-xs font-bold text-[#d71920] hover:underline cursor-pointer"
+      >
+        Forgot password?
+      </button>
+    </div>
+  )}
+
+  <button
+    type="submit"
+    disabled={isSubmitting}
+    className="w-full bg-[#d71920] hover:bg-[#b8141a] disabled:opacity-60 text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer"
+  >
+    {isSubmitting
+      ? 'Please wait…'
+      : mode === 'login'
+        ? `Sign In as ${role === 'employer' ? 'Employer' : 'Candidate'}`
+        : 'Create Account'}
+  </button>
+
+</form>
               <div className="mt-5 pt-4 border-t border-gray-100 text-center text-xs text-gray-600">{mode === 'login' ? <>Don’t have an account yet? <button type="button" onClick={() => setMode('register')} className="font-bold text-[#d71920] hover:underline cursor-pointer">Register here</button></> : <>Already have an account? <button type="button" onClick={() => setMode('login')} className="font-bold text-[#d71920] hover:underline cursor-pointer">Sign in</button></>}</div>
             </>
           )}

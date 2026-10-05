@@ -246,21 +246,82 @@ if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
     const token = signToken({ sub: user.id, role: user.role, exp: Date.now() + 1000 * 60 * 60 * 24 * 7 });
     res.status(201).json({ token, user: publicUser({ ...user, company_name: user.companyName }) });
   } catch (error) {
-    if (error.code === '23505') return res.status(409).json({ message: 'An account with this email already exists.' });
+    if (error.code === '23505') {
+  if (error.constraint === 'users_email_key') {
+    return res.status(409).json({
+      message: 'An account with this email already exists.'
+    });
+  }
+
+  if (error.constraint === 'idx_users_phone_unique') {
+    return res.status(409).json({
+      message: 'An account with this mobile number already exists.'
+    });
+  }
+
+  return res.status(409).json({
+    message: 'An account with these details already exists.'
+  });
+}
     console.error(error); res.status(500).json({ message: 'Could not create your account.' });
   }
 });
 
 app.post('/api/auth/login', authLimiter, async (req, res) => {
-  const { email, password, role } = req.body || {};
+  const { phone, password, role } = req.body || {};
+
+  if (validateRequired(req.body, ['phone', 'password'])) {
+    return res.status(400).json({
+      message: 'Mobile number and password are required.'
+    });
+  }
+
+  const normalizedPhone = String(phone || '').replace(/\D/g, '');
+
+  if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
+    return res.status(400).json({
+      message: 'Please enter a valid 10-digit Indian mobile number.'
+    });
+  }
+
   try {
-    const result = await query('SELECT * FROM users WHERE email = $1', [cleanEmail(email)]);
+    const result = await query(
+      'SELECT * FROM users WHERE phone = $1',
+      [normalizedPhone]
+    );
+
     const user = result.rows[0];
-    if (!user || !verifyPassword(password, user.password_hash)) return res.status(401).json({ message: 'Invalid email or password.' });
-    if (role && user.role !== role) return res.status(403).json({ message: `This account is registered as ${user.role}.` });
-    const token = signToken({ sub: user.id, role: user.role, exp: Date.now() + 1000 * 60 * 60 * 24 * 7 });
-    res.json({ token, user: publicUser(user) });
-  } catch (error) { console.error(error); res.status(500).json({ message: 'Could not sign you in.' }); }
+
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      return res.status(401).json({
+        message: 'Invalid mobile number or password.'
+      });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({
+        message: `This account is registered as ${user.role === 'employer' ? 'Employer / Recruiter' : 'Job Seeker'}.`
+      });
+    }
+
+    const token = signToken({
+      sub: user.id,
+      role: user.role,
+      exp: Date.now() + 1000 * 60 * 60 * 24 * 7
+    });
+
+    res.json({
+      token,
+      user: publicUser(user)
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: 'Could not sign you in.'
+    });
+  }
 });
 
 app.post('/api/auth/forgot-password', resetLimiter, async (req, res) => {
