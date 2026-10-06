@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Job, FilterState, ApplicationSubmission, RecruitmentService, HomeServiceItem } from './types';
 import { INITIAL_JOBS } from './data/mockData';
 import { api, getToken, setToken } from './api';
+import { getJobShareUrl } from './utils/jobSharing';
 
 // Jobs Portal Components
 import { Navbar } from './components/Navbar';
@@ -14,6 +15,7 @@ import { CtaSection } from './components/CtaSection';
 import { Footer } from './components/Footer';
 import { JobDetailModal } from './components/JobDetailModal';
 import { ApplyModal } from './components/ApplyModal';
+import { ShareJobModal } from './components/ShareJobModal';
 import { PostJobModal } from './components/PostJobModal';
 import { ResumeUploadModal } from './components/ResumeUploadModal';
 import { AuthModal } from './components/AuthModal';
@@ -121,6 +123,7 @@ export default function App() {
   // Modals for Jobs Portal
   const [selectedJobForDetail, setSelectedJobForDetail] = useState<Job | null>(null);
   const [selectedJobForApply, setSelectedJobForApply] = useState<Job | null>(null);
+  const [selectedJobForShare, setSelectedJobForShare] = useState<Job | null>(null);
   const [postJobModalOpen, setPostJobModalOpenState] = useState<boolean>(() => {
     try { return sessionStorage.getItem('rrgbs_post_job_modal') === '1'; } catch { return false; }
   });
@@ -211,7 +214,21 @@ export default function App() {
     (async () => {
       try {
         const result = await api.jobs();
-        if (active) setJobs(result.jobs);
+        if (active) {
+          setJobs(result.jobs);
+
+          // Shared job links use /jobs/:jobId so social platforms receive a
+          // job-specific URL while the SPA still opens the exact position.
+          const sharedPath = window.location.pathname.match(/^\/jobs\/([^/]+)$/);
+          const sharedJobId = sharedPath ? decodeURIComponent(sharedPath[1]) : new URLSearchParams(window.location.search).get('jobId');
+          if (sharedJobId) {
+            const sharedJob = result.jobs.find((job) => job.id === sharedJobId);
+            if (sharedJob) {
+              setPortal('jobs');
+              setSelectedJobForDetail(sharedJob);
+            }
+          }
+        }
         const token = getToken();
         if (token) {
           try {
@@ -325,6 +342,10 @@ export default function App() {
       // ignore
     }
     addToast(`Application for ${submission.jobTitle} submitted!`, 'success');
+  };
+
+  const handleShareJob = (job: Job) => {
+    setSelectedJobForShare(job);
   };
 
   return (
@@ -472,6 +493,7 @@ export default function App() {
               onToggleSaveJob={handleToggleSaveJob}
               onSelectJobForDetail={(job) => setSelectedJobForDetail(job)}
               onApplyForJob={(job) => setSelectedJobForApply(job)}
+              onShareJob={handleShareJob}
               showingSavedOnly={showingSavedOnly}
               onToggleShowingSavedOnly={() => setShowingSavedOnly(!showingSavedOnly)}
             />
@@ -537,6 +559,11 @@ export default function App() {
         job={selectedJobForApply}
         onClose={() => setSelectedJobForApply(null)}
         onSubmitApplication={handleApplicationSubmitted}
+      />
+
+      <ShareJobModal
+        job={selectedJobForShare}
+        onClose={() => setSelectedJobForShare(null)}
       />
 
       <PostJobModal

@@ -25,6 +25,7 @@ interface JobListingsSectionProps {
   onToggleSaveJob: (jobId: string) => void;
   onSelectJobForDetail: (job: Job) => void;
   onApplyForJob: (job: Job) => void;
+  onShareJob: (job: Job) => void;
   showingSavedOnly: boolean;
   onToggleShowingSavedOnly: () => void;
 }
@@ -38,6 +39,7 @@ export const JobListingsSection: React.FC<JobListingsSectionProps> = ({
   onToggleSaveJob,
   onSelectJobForDetail,
   onApplyForJob,
+  onShareJob,
   showingSavedOnly,
   onToggleShowingSavedOnly,
 }) => {
@@ -415,12 +417,19 @@ export const JobListingsSection: React.FC<JobListingsSectionProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <button
                         onClick={() => onSelectJobForDetail(job)}
                         className="px-3 py-2 rounded-md text-xs font-bold text-gray-700 hover:text-black border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         Details
+                      </button>
+                      <button
+                        onClick={() => onShareJob(job)}
+                        className="px-3 py-2 rounded-md text-xs font-bold text-gray-700 hover:text-black border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                        aria-label={`Share ${job.title}`}
+                      >
+                        Share this job
                       </button>
                       <button
                         onClick={() => onApplyForJob(job)}

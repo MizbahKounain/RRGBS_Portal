@@ -175,6 +175,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_job_email_unique
 ON applications (job_id, LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_resumes_email ON resumes(email);
 CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_unique ON users (phone);
 `;
 
 function id(prefix) {

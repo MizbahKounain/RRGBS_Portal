@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Job } from '../types';
 import { 
   X, 
@@ -28,7 +28,40 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   isSaved,
   onToggleSave,
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!job) return null;
+
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/jobs/${encodeURIComponent(job.id)}`
+    : `/jobs/${encodeURIComponent(job.id)}`;
+
+  const shareOnLinkedIn = () => {
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer,width=760,height=680'
+    );
+  };
+
+  const shareOnX = () => {
+    const text = `Check out this job: ${job.title} at ${job.company}`;
+    window.open(
+      `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer,width=760,height=680'
+    );
+  };
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
@@ -171,6 +204,39 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Job Sharing */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Share2 className="w-4 h-4 text-[#d71920]" />
+              <h3 className="text-sm font-bold text-gray-900">Share this job</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={shareOnLinkedIn}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-[#0A66C2] hover:bg-blue-50 hover:border-blue-200 transition-colors"
+              >
+                LinkedIn
+              </button>
+              <button
+                type="button"
+                onClick={shareOnX}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-900 hover:bg-gray-100 transition-colors"
+              >
+                <span className="font-black">𝕏</span> X
+              </button>
+              <button
+                type="button"
+                onClick={copyShareLink}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-white transition-colors"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                {copied ? 'Link Copied' : 'Copy Job Link'}
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] text-gray-500">Share the direct job link so the recipient can view the position and apply.</p>
+          </div>
 
           {/* Hiring Notice */}
           <div className="p-3.5 bg-neutral-900 text-white rounded-xl text-xs flex items-center justify-between">

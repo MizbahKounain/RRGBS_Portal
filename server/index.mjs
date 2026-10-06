@@ -520,12 +520,26 @@ app.delete('/api/saved-jobs/:jobId', auth, async (req, res) => {
 
 app.post('/api/applications', async (req, res) => {
   const body = req.body || {};
-  if (validateRequired(body, ['jobId','jobTitle','applicantName','email','phone'])) return res.status(400).json({ message: 'Please complete the required application fields.' });
+  if (validateRequired(body, ['jobId','jobTitle','applicantName','email','phone','resumeFileName','resumeData'])) {
+    return res.status(400).json({ message: 'Please complete all required application fields, including your resume.' });
+  }
   try {
     const job = await query('SELECT * FROM jobs WHERE id=$1', [body.jobId]);
     if (!job.rowCount) return res.status(404).json({ message: 'This job is no longer available.' });
+
+    // Fast duplicate check prevents unnecessary Cloudinary uploads. The unique
+    // PostgreSQL index below remains the final race-safe protection.
+    const normalizedEmail = cleanEmail(body.email);
+    const duplicate = await query(
+      'SELECT id FROM applications WHERE job_id = $1 AND LOWER(email) = LOWER($2) LIMIT 1',
+      [body.jobId, normalizedEmail]
+    );
+    if (duplicate.rowCount) {
+      return res.status(409).json({ message: 'You have already applied for this job.' });
+    }
+
     const storage = await uploadResumeToCloudinary(body.resumeFileName, body.resumeData, 'application');
-    const application = { id:idempotentId('app'), jobId:body.jobId, jobTitle:String(body.jobTitle), company:String(body.company || job.rows[0].company), applicantName:String(body.applicantName).trim(), email:cleanEmail(body.email), phone:String(body.phone).trim(), experience:String(body.experience||''), currentLocation:String(body.currentLocation||''), resumeFileName:String(body.resumeFileName||storage?.originalName||''), notes:String(body.notes||''), resumeStorage:storage };
+    const application = { id:idempotentId('app'), jobId:body.jobId, jobTitle:String(body.jobTitle), company:String(body.company || job.rows[0].company), applicantName:String(body.applicantName).trim(), email:normalizedEmail, phone:String(body.phone).trim(), experience:String(body.experience||''), currentLocation:String(body.currentLocation||''), resumeFileName:String(body.resumeFileName||storage?.originalName||''), notes:String(body.notes||''), resumeStorage:storage };
     await query(`INSERT INTO applications (id,job_id,job_title,company,applicant_name,email,phone,experience,current_location,resume_file_name,resume_storage,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`, [application.id,application.jobId,application.jobTitle,application.company,application.applicantName,application.email,application.phone,application.experience,application.currentLocation,application.resumeFileName,storage ? JSON.stringify(storage) : null,application.notes]);
     res.status(201).json({ application: { ...application, resumeStorage: undefined } });
   } catch (error) {
@@ -592,6 +606,58 @@ app.post('/api/store/bulk-quotes', async (req, res) => {
   const quote={id:idempotentId('bulk'),name:String(body.name).trim(),phone:String(body.phone).trim(),email:String(body.email||'').trim(),category:String(body.category).trim(),quantity:String(body.quantity||''),message:String(body.message).trim(),status:'new'};
   await query(`INSERT INTO bulk_quotes (id,name,phone,email,category,quantity,message,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [quote.id,quote.name,quote.phone,quote.email,quote.category,quote.quantity,quote.message,quote.status]);
   res.status(201).json({quote});
+});
+
+// Public, shareable job URL. The server renders job-specific social metadata so
+// LinkedIn/X can generate a useful preview, then the browser continues into the SPA.
+app.get('/jobs/:jobId', async (req, res, next) => {
+  try {
+    const result = await query('SELECT * FROM jobs WHERE id=$1', [req.params.jobId]);
+    if (!result.rowCount) return next();
+
+    const job = mapJob(result.rows[0]);
+    const origin = getOrigin(req);
+    const shareUrl = `${origin}/jobs/${encodeURIComponent(job.id)}`;
+    const appUrl = `${origin}/?portal=jobs&jobId=${encodeURIComponent(job.id)}`;
+    const title = `${job.title} at ${job.company} | RRGBS Jobs`;
+    const description = `${job.title} at ${job.company} in ${job.location}. ${job.experience} • ${job.type} • ${job.salary}. View the complete job details and apply online with RRGBS.`;
+    const imageUrl = `${origin}/rrgbs-logo.svg`;
+
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+    res.type('html').send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${escapeHtml(shareUrl)}">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:image" content="${escapeHtml(imageUrl)}">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name="twitter:image" content="${escapeHtml(imageUrl)}">
+  <link rel="canonical" href="${escapeHtml(shareUrl)}">
+</head>
+<body>
+  <main style="font-family:Arial,sans-serif;max-width:760px;margin:48px auto;padding:24px">
+    <h1>${escapeHtml(job.title)}</h1>
+    <p><strong>${escapeHtml(job.company)}</strong> • ${escapeHtml(job.location)}</p>
+    <p>${escapeHtml(job.description)}</p>
+    <p><strong>${escapeHtml(job.salary)}</strong> • ${escapeHtml(job.experience)} • ${escapeHtml(job.type)}</p>
+    <p>Opening the complete RRGBS job page…</p>
+  </main>
+  <script>window.location.replace(${JSON.stringify(appUrl)});</script>
+  <noscript><p><a href="${escapeHtml(appUrl)}">Open the job and apply on RRGBS</a></p></noscript>
+</body>
+</html>`);
+  } catch (error) {
+    console.error('Shared job route failed:', error);
+    next();
+  }
 });
 
 if (isProduction) {

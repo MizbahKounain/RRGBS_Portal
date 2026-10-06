@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Job, ApplicationSubmission } from '../types';
 import { X, Upload, CheckCircle2, FileText, ArrowRight, AlertCircle } from 'lucide-react';
 import { api, fileToDataUrl } from '../api';
@@ -28,13 +28,43 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Every job gets a fresh application state. Candidate details intentionally
+  // stay in the form for convenience, but the resume is always cleared so the
+  // candidate must explicitly choose the file for that particular application.
+  useEffect(() => {
+    if (!job) return;
+    setIsSubmitted(false);
+    setErrorMsg('');
+    setIsSubmitting(false);
+    setResumeFile(null);
+    setNotes('');
+    setIsDragging(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [job?.id]);
+
   if (!job) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setResumeFile(e.target.files[0]);
-      setErrorMsg('');
+  const validateResumeFile = (file: File): boolean => {
+    const extension = file.name.toLowerCase().split('.').pop() || '';
+    const allowed = ['pdf', 'doc', 'docx'];
+    if (!allowed.includes(extension)) {
+      setResumeFile(null);
+      setErrorMsg('Please upload a PDF, DOC, or DOCX resume.');
+      return false;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      setResumeFile(null);
+      setErrorMsg('Resume must be 5MB or smaller.');
+      return false;
+    }
+    setResumeFile(file);
+    setErrorMsg('');
+    return true;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) validateResumeFile(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -49,10 +79,8 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setResumeFile(e.dataTransfer.files[0]);
-      setErrorMsg('');
-    }
+    const file = e.dataTransfer.files?.[0];
+    if (file) validateResumeFile(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,6 +89,7 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
     if (!name.trim()) { setErrorMsg('Please enter your full name.'); return; }
     if (!email.trim() || !email.includes('@')) { setErrorMsg('Please enter a valid email address.'); return; }
     if (!phone.trim() || phone.replace(/\D/g, '').length < 10) { setErrorMsg('Please enter a valid 10-digit mobile number.'); return; }
+    if (!resumeFile) { setErrorMsg('Please upload your resume before applying.'); return; }
 
     setIsSubmitting(true);
     try {
@@ -74,7 +103,7 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
         phone: phone.trim(),
         experience,
         currentLocation: location.trim() || 'Bangalore',
-        resumeFileName: resumeFile ? resumeFile.name : 'Resume_Profile.pdf',
+        resumeFileName: resumeFile.name,
         notes: notes.trim(),
         appliedAt: new Date().toISOString(),
       };
@@ -143,7 +172,7 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-gray-400">Resume Attached:</span>
                 <span className="font-semibold text-gray-800">
-                  {resumeFile ? resumeFile.name : 'Candidate Profile.pdf'}
+                  {resumeFile ? resumeFile.name : 'Not attached'}
                 </span>
               </div>
             </div>
@@ -249,7 +278,7 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
             {/* Drag & Drop Resume Upload */}
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">
-                Upload Resume / CV (PDF, DOC, DOCX)
+                Upload Resume / CV (PDF, DOC, DOCX) <span className="text-red-500">*</span>
               </label>
 
               <div
@@ -269,7 +298,8 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  required
                   className="hidden"
                 />
 
@@ -320,7 +350,8 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="bg-[#d71920] hover:bg-[#b8141a] text-white px-6 py-2.5 rounded-lg text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer"
+                disabled={isSubmitting}
+                className="bg-[#d71920] hover:bg-[#b8141a] disabled:opacity-60 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer"
               >
                 {isSubmitting ? 'Submitting…' : 'Submit Application'}
               </button>
