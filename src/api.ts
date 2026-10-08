@@ -31,6 +31,8 @@ export const api = {
   resetPassword: (body: { email: string; code: string; password: string }) => request<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }),
   me: () => request<{ user: any }>('/auth/me'),
   jobs: () => request<{ jobs: Job[]; total: number }>('/jobs'),
+  getJob: (jobId: string) =>
+  request<{ job: Job }>(`/jobs/${encodeURIComponent(jobId)}`),
   postJob: (body: any) => request<{ job: Job }>('/jobs', { method: 'POST', body: JSON.stringify(body) }),
   recruiterProfile: (body: any) => request<{ user: any }>('/recruiter/profile', { method: 'POST', body: JSON.stringify(body) }),
   recruiterJobs: () => request<{ jobs: any[] }>('/recruiter/jobs'),

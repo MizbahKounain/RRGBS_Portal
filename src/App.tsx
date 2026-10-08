@@ -216,24 +216,24 @@ export default function App() {
         const result = await api.jobs();
         if (active) {
           setJobs(result.jobs);
-
           // Open a specific job when a shared job URL is opened.
 // Example: /jobs/job_12345
 const pathname = window.location.pathname;
 const sharedPath = pathname.match(/^\/jobs\/([^/]+)\/?$/);
-
 const sharedJobId = sharedPath
   ? decodeURIComponent(sharedPath[1])
   : new URLSearchParams(window.location.search).get('jobId');
 
 if (sharedJobId) {
-  const sharedJob = result.jobs.find(
-    (job) => job.id === sharedJobId
-  );
+  try {
+    const sharedResult = await api.getJob(sharedJobId);
 
-  if (sharedJob) {
-    setPortal('jobs');
-    setSelectedJobForDetail(sharedJob);
+    if (active && sharedResult?.job) {
+      setPortal('jobs');
+      setSelectedJobForDetail(sharedResult.job);
+    }
+  } catch (error) {
+    console.error('Could not open shared job:', error);
   }
 }
         }

@@ -608,48 +608,131 @@ app.post('/api/store/bulk-quotes', async (req, res) => {
   res.status(201).json({quote});
 });
 
-// Public, shareable job URL. The server renders job-specific social metadata so
-// LinkedIn/X can generate a useful preview, then the browser continues into the SPA.
+// Public, shareable job URL.
+//
+// Normal browsers receive the React application so App.tsx can open the
+// exact Job Details modal.
+//
+// Social crawlers receive job-specific Open Graph/Twitter metadata so
+// LinkedIn/X can generate the correct preview.
 app.get('/jobs/:jobId', async (req, res, next) => {
   try {
-    const result = await query('SELECT * FROM jobs WHERE id=$1', [req.params.jobId]);
+    const result = await query(
+      'SELECT * FROM jobs WHERE id=$1',
+      [req.params.jobId]
+    );
+
     if (!result.rowCount) return next();
 
     const job = mapJob(result.rows[0]);
+
     const origin = getOrigin(req);
     const shareUrl = `${origin}/jobs/${encodeURIComponent(job.id)}`;
-    const appUrl = `${origin}/?portal=jobs&jobId=${encodeURIComponent(job.id)}`;
+
     const title = `${job.title} at ${job.company} | RRGBS Jobs`;
-    const description = `${job.title} at ${job.company} in ${job.location}. ${job.experience} • ${job.type} • ${job.salary}. View the complete job details and apply online with RRGBS.`;
+
+    const description =
+      `${job.title} at ${job.company} in ${job.location}. ` +
+      `${job.experience} • ${job.type} • ${job.salary}. ` +
+      `View the complete job details and apply online with RRGBS.`;
+
     const imageUrl = `${origin}/rrgbs-logo.svg`;
 
-    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
-    res.type('html').send(`<!doctype html>
+    const userAgent = String(req.get('user-agent') || '').toLowerCase();
+
+    const isSocialCrawler =
+      userAgent.includes('linkedinbot') ||
+      userAgent.includes('twitterbot') ||
+      userAgent.includes('facebookexternalhit') ||
+      userAgent.includes('facebot') ||
+      userAgent.includes('whatsapp') ||
+      userAgent.includes('telegrambot') ||
+      userAgent.includes('slackbot') ||
+      userAgent.includes('discordbot') ||
+      userAgent.includes('googlebot') ||
+      userAgent.includes('bingbot');
+
+    /*
+     * Social platforms need server-rendered metadata.
+     * Give crawlers a lightweight HTML document containing the job data.
+     */
+    if (isSocialCrawler) {
+      res.setHeader(
+        'Cache-Control',
+        'public, max-age=300, s-maxage=300'
+      );
+
+      return res.type('html').send(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+
   <title>${escapeHtml(title)}</title>
-  <meta name="description" content="${escapeHtml(description)}">
+
+  <meta
+    name="description"
+    content="${escapeHtml(description)}"
+  >
+
   <meta property="og:type" content="website">
   <meta property="og:url" content="${escapeHtml(shareUrl)}">
   <meta property="og:title" content="${escapeHtml(title)}">
-  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta
+    property="og:description"
+    content="${escapeHtml(description)}"
+  >
   <meta property="og:image" content="${escapeHtml(imageUrl)}">
+
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="${escapeHtml(title)}">
-  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta
+    name="twitter:description"
+    content="${escapeHtml(description)}"
+  >
   <meta name="twitter:image" content="${escapeHtml(imageUrl)}">
-  <link rel="canonical" href="${escapeHtml(shareUrl)}">
+
+  <link
+    rel="canonical"
+    href="${escapeHtml(shareUrl)}"
+  >
 </head>
+
 <body>
-  <script>window.location.replace(${JSON.stringify(appUrl)});</script>
-  <noscript><p><a href="${escapeHtml(appUrl)}">Open the job and apply on RRGBS</a></p></noscript>
+  <p>${escapeHtml(title)}</p>
+  <p>${escapeHtml(description)}</p>
 </body>
 </html>`);
+    }
+
+    /*
+     * Normal browser:
+     * Let the React SPA handle /jobs/:jobId.
+     *
+     * App.tsx will detect the pathname and open the exact job.
+     */
+    if (isProduction) {
+      const dist = path.join(ROOT, 'dist');
+
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, must-revalidate'
+      );
+
+      return res.sendFile(
+        path.join(dist, 'index.html')
+      );
+    }
+
+    /*
+     * Development mode.
+     * Pass through so the Vite/dev server can handle the frontend route.
+     */
+    return next();
+
   } catch (error) {
     console.error('Shared job route failed:', error);
-    next();
+    return next();
   }
 });
 
