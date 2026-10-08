@@ -643,13 +643,6 @@ app.get('/jobs/:jobId', async (req, res, next) => {
   <link rel="canonical" href="${escapeHtml(shareUrl)}">
 </head>
 <body>
-  <main style="font-family:Arial,sans-serif;max-width:760px;margin:48px auto;padding:24px">
-    <h1>${escapeHtml(job.title)}</h1>
-    <p><strong>${escapeHtml(job.company)}</strong> • ${escapeHtml(job.location)}</p>
-    <p>${escapeHtml(job.description)}</p>
-    <p><strong>${escapeHtml(job.salary)}</strong> • ${escapeHtml(job.experience)} • ${escapeHtml(job.type)}</p>
-    <p>Opening the complete RRGBS job page…</p>
-  </main>
   <script>window.location.replace(${JSON.stringify(appUrl)});</script>
   <noscript><p><a href="${escapeHtml(appUrl)}">Open the job and apply on RRGBS</a></p></noscript>
 </body>

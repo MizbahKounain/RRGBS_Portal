@@ -217,17 +217,25 @@ export default function App() {
         if (active) {
           setJobs(result.jobs);
 
-          // Shared job links use /jobs/:jobId so social platforms receive a
-          // job-specific URL while the SPA still opens the exact position.
-          const sharedPath = window.location.pathname.match(/^\/jobs\/([^/]+)$/);
-          const sharedJobId = sharedPath ? decodeURIComponent(sharedPath[1]) : new URLSearchParams(window.location.search).get('jobId');
-          if (sharedJobId) {
-            const sharedJob = result.jobs.find((job) => job.id === sharedJobId);
-            if (sharedJob) {
-              setPortal('jobs');
-              setSelectedJobForDetail(sharedJob);
-            }
-          }
+          // Open a specific job when a shared job URL is opened.
+// Example: /jobs/job_12345
+const pathname = window.location.pathname;
+const sharedPath = pathname.match(/^\/jobs\/([^/]+)\/?$/);
+
+const sharedJobId = sharedPath
+  ? decodeURIComponent(sharedPath[1])
+  : new URLSearchParams(window.location.search).get('jobId');
+
+if (sharedJobId) {
+  const sharedJob = result.jobs.find(
+    (job) => job.id === sharedJobId
+  );
+
+  if (sharedJob) {
+    setPortal('jobs');
+    setSelectedJobForDetail(sharedJob);
+  }
+}
         }
         const token = getToken();
         if (token) {
